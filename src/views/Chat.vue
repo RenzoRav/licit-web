@@ -40,11 +40,6 @@
           v-if="chat.isEmpty && !chat.documentoAtivo"
           class="flex flex-col items-center justify-center h-full text-center p-8"
         >
-          <img
-            src="@/assets/img/logo.png"
-            alt="LicitAI"
-            class="w-16 h-16 object-contain mb-4 opacity-30 grayscale dark:invert"
-          />
           <h3 class="text-gray-700 dark:text-gray-300 font-medium text-lg mb-1">
             Nenhuma mensagem ainda
           </h3>
