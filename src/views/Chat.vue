@@ -204,8 +204,6 @@
             </svg>
           </button>
         </div>
-
-        do
         <div
           class="flex items-center gap-2 bg-gray-50 dark:bg-zinc-800 rounded-full px-3 md:px-4 py-2 border border-gray-200 dark:border-zinc-700 focus-within:border-black dark:focus-within:border-white focus-within:ring-1 focus-within:ring-black dark:focus-within:ring-white transition-all"
         >
