@@ -158,7 +158,7 @@
             class="px-6 py-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 transition-colors"
           >
             <p class="text-xs text-center text-gray-500 dark:text-gray-400 transition-colors">
-              LicitAI v1.0.0 ·
+              Licit v1.0.0 ·
               <a href="#" class="underline hover:text-black dark:hover:text-white">Termos de uso</a>
               · <a href="#" class="underline hover:text-black dark:hover:text-white">Privacidade</a>
             </p>

@@ -1,116 +1,133 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-const API_URL = 'http://localhost:3000/api'
+import api from '@/api/axios'
 
 export const useChatStore = defineStore('chat', () => {
   const messages = ref([])
   const isTyping = ref(false)
-  const error = ref(null)
-  const documentoAtivo = ref(null)
+  const isEmpty = computed(() => messages.value.length === 0)
   const isUploading = ref(false)
   const uploadProgress = ref(0)
 
-  const hasError = computed(() => error.value !== null)
-  const isEmpty = computed(() => messages.value.length === 0)
+  // Persiste estado entre reloads
+  const conversationId = ref(localStorage.getItem('conversationId') || null)
+  const documentoAtivo = ref(JSON.parse(localStorage.getItem('documentoAtivo') || 'null'))
 
-  function clearError() {
-    error.value = null
-  }
+  async function uploadDocument(file) {
+    isUploading.value = true
+    uploadProgress.value = 0
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('name', file.name.replace(/\.(pdf|txt|docx?)$/i, ''))
 
-  function addMessage(text, from = 'user', citacao = null) {
-    messages.value.push({
-      id: Date.now() + Math.random(),
-      text,
-      from,
-      citacao,
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    })
+      const { data: context } = await api.post('/contexts/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          uploadProgress.value = Math.round(
+            (progressEvent.loaded * 100) / (progressEvent.total || 1),
+          )
+        },
+      })
+
+      const { data: conversation } = await api.post('/conversations', {
+        title: file.name,
+        context_id: context.id,
+      })
+
+      documentoAtivo.value = {
+        id: context.id,
+        name: context.name,
+        size: file.size,
+        content: context.content,
+        context_id: context.id,
+      }
+      conversationId.value = conversation.id
+
+      // Persiste no localStorage
+      localStorage.setItem('conversationId', conversation.id)
+      localStorage.setItem('documentoAtivo', JSON.stringify(documentoAtivo.value))
+
+      uploadProgress.value = 100
+
+      messages.value.push({
+        id: Date.now(),
+        from: 'bot',
+        text: `Documento "${context.name}" processado. Agora voce pode consultar informacoes sobre este edital.`,
+      })
+
+      return { context, conversation }
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error)
+      messages.value.push({
+        id: Date.now(),
+        from: 'bot',
+        text: 'Erro ao processar o documento. Tente novamente.',
+        is_error: true,
+      })
+      throw error
+    } finally {
+      isUploading.value = false
+    }
   }
 
   async function send(text) {
-    if (!text || !text.trim()) {
-      error.value = 'Digite uma pergunta sobre o edital'
-      return
-    }
+    if (!text.trim() || text.length > 500) return
 
-    clearError()
-    addMessage(text.trim(), 'user')
+    messages.value.push({ id: Date.now(), from: 'user', text })
     isTyping.value = true
 
     try {
-      const contexto = documentoAtivo.value?.content || ''
-
-      const response = await fetch(`${API_URL}/qa/simple`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: text.trim(),
-          context: contexto,
-        }),
-      })
-
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.error || `Erro ${response.status}`)
+      if (!conversationId.value) {
+        const { data: conversation } = await api.post('/conversations', {
+          title: text.substring(0, 50),
+          context_id: documentoAtivo.value?.context_id || null,
+        })
+        conversationId.value = conversation.id
+        localStorage.setItem('conversationId', conversation.id)
       }
 
-      const data = await response.json()
-      addMessage(data.answer, 'bot')
-    } catch (err) {
-      error.value = err.message || 'Erro ao consultar o documento.'
-      addMessage('Não foi possível consultar o edital. Verifique se a API está rodando.', 'system')
+      const { data: result } = await api.post(`/conversations/${conversationId.value}/messages`, {
+        question: text,
+        context_id: documentoAtivo.value?.context_id || null,
+      })
+
+      messages.value.push({
+        id: Date.now() + 1,
+        from: 'bot',
+        text: result.assistant_message?.content || result.answer || 'Sem resposta',
+      })
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error)
+      messages.value.push({
+        id: Date.now() + 1,
+        from: 'bot',
+        text: 'Nao foi possivel consultar o edital. Verifique se a API esta rodando.',
+        is_error: true,
+      })
     } finally {
       isTyping.value = false
     }
   }
 
-  async function uploadDocument(file) {
-    isUploading.value = true
-    uploadProgress.value = 0
-
-    const interval = setInterval(() => {
-      uploadProgress.value += 10
-      if (uploadProgress.value >= 100) clearInterval(interval)
-    }, 200)
-
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        documentoAtivo.value = {
-          name: file.name,
-          size: file.size,
-          content:
-            'Edital 045/2024. Objeto: aquisição de equipamentos de informática para atender às necessidades da rede municipal de educação. Valor estimado: R$ 2.450.000,00. Prazo de entrega: 30 dias corridos. Órgão contratante: Prefeitura Municipal de Teresina. Forma de pagamento: 12 parcelas mensais. Requisitos: regularidade fiscal, trabalhista e qualificação técnica.',
-        }
-        isUploading.value = false
-        uploadProgress.value = 0
-        addMessage(
-          `Documento "${file.name}" processado. Agora você pode consultar informações sobre este edital.`,
-          'bot',
-        )
-        resolve()
-      }, 2500)
-    })
-  }
-
-  function clearChat() {
+  function clear() {
     messages.value = []
-    error.value = null
     documentoAtivo.value = null
+    conversationId.value = null
+    localStorage.removeItem('conversationId')
+    localStorage.removeItem('documentoAtivo')
   }
 
   return {
     messages,
     isTyping,
+    isEmpty,
+    documentoAtivo,
     isUploading,
     uploadProgress,
-    error,
-    documentoAtivo,
-    hasError,
-    isEmpty,
-    send,
+    conversationId,
     uploadDocument,
-    clearError,
-    clearChat,
+    send,
+    clear,
   }
 })

@@ -10,12 +10,6 @@
     <p class="text-gray-500 dark:text-gray-400 mb-2 text-sm md:text-base transition-colors">
       Assistente inteligente para licitacoes publicas
     </p>
-    <p
-      class="text-gray-400 dark:text-gray-500 text-xs md:text-sm mb-6 md:mb-8 max-w-md px-4 transition-colors"
-    >
-      Faca login para consultar editais, pregoes, contratos e atas com nossa IA especializada.
-    </p>
-
     <button
       @click="handleGoogleLogin"
       :disabled="authStore.loading"

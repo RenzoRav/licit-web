@@ -12,7 +12,7 @@ import {
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: null,
+    token: localStorage.getItem('token'),
     loading: false,
     error: null,
   }),
@@ -30,6 +30,7 @@ export const useAuthStore = defineStore('auth', {
         const result = await signInWithPopup(auth, googleProvider)
         this.user = result.user
         this.token = await result.user.getIdToken()
+        localStorage.setItem('token', this.token)
         return true
       } catch (err) {
         this.error = err.message
@@ -46,6 +47,7 @@ export const useAuthStore = defineStore('auth', {
         const result = await signInWithEmailAndPassword(auth, email, password)
         this.user = result.user
         this.token = await result.user.getIdToken()
+        localStorage.setItem('token', this.token)
         return true
       } catch (err) {
         this.error = err.message
@@ -62,6 +64,7 @@ export const useAuthStore = defineStore('auth', {
         const result = await createUserWithEmailAndPassword(auth, email, password)
         this.user = result.user
         this.token = await result.user.getIdToken()
+        localStorage.setItem('token', this.token)
         return true
       } catch (err) {
         this.error = err.message
@@ -73,6 +76,7 @@ export const useAuthStore = defineStore('auth', {
 
     async logout() {
       await signOut(auth)
+      localStorage.removeItem('token')
       this.user = null
       this.token = null
       this.error = null
@@ -83,9 +87,11 @@ export const useAuthStore = defineStore('auth', {
         if (user) {
           this.user = user
           this.token = await user.getIdToken()
+          localStorage.setItem('token', this.token)
         } else {
           this.user = null
           this.token = null
+          localStorage.removeItem('token')
         }
       })
     },
